@@ -11,6 +11,7 @@ PROPERTY_KEYS = {
     }, 
     'single': {
         'default': True,
+        'function': single._parse_single
     }, 
     'multi': {
         'default': True
@@ -71,7 +72,6 @@ def _convertFile(dir, properties):
     for key in properties:
         if properties[key] == True:
             trueKeys.append(key)
-
 
     arrFile = []
 
