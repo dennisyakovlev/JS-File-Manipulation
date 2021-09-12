@@ -1,5 +1,7 @@
 import os
-import utils
+import sys
+
+from src import utils
 
 def _isBaseCase(obj):
     ''' Determine whether object is property object.
@@ -52,7 +54,6 @@ def start(obj, start_path = '', path = ''):
         utils._createDir(outPath)
 
     # base case 
-    # if isinstance(obj, str):
     if _isBaseCase(obj):
         properties = utils._getProp(obj)
         arr = utils._convertFile(os.path.join(start_path, path, properties[utils.PROPERTY_NAME_KEY] + '.js'), properties)

@@ -1,7 +1,7 @@
 import os
-import jsdoc
-import single
-import multi
+from src import jsdoc
+from src import single
+from src import multi
 
 PROPERTY_NAME_KEY = 'name'
 PROPERTY_KEYS = {
