@@ -16,6 +16,9 @@ def _find_endJsDoc(s):
 
 def _parse_jsdoc(f, line):
     ''' If jsdoc is found, skip past all the commented lines.
+
+        This function DOES remove the jsdoc comment lines. They are not left in as
+        blank in the new file.
     '''
 
     if (_find_startJsDoc(line)):
