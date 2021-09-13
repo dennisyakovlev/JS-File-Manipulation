@@ -1,4 +1,5 @@
 import os
+
 from src.comments.comment_types import jsdoc
 from src.comments.comment_types import single
 from src.comments.comment_types import multi
@@ -97,3 +98,45 @@ def _wrtieFile(dir, name, arr):
     f.writelines(arr)
 
     f.close()
+
+def _has_literal(s):
+    ''' Whether s has any of ", ', or `.
+    '''
+
+    arr = ['"', "'", '`']
+    res = [(quote in s) for quote in arr]
+
+    for item in res:
+        if item:
+            return True
+    
+    return False
+
+def _remove_inner(arr):
+    ''' Remove all inner indicies.
+
+        An inner set of quotes will NEVER overlap (as in "oka'y"') with its parent
+        set of quotes.
+
+        Ex: "hello 'inside' world"
+            the 'inside' is inner indicies
+    '''
+
+    arrLocal = arr[:]
+    ret = []
+
+    curr = arrLocal.pop()
+    while not arrLocal == []:
+        i = 0
+        while i != len(arrLocal) and not (curr[0] > arrLocal[i][0] and curr[1] < arrLocal[i][1]): # loop until curr is found out to be inner literal
+            i += 1
+
+        if i == len(arrLocal): # not inner
+            ret.append(curr)
+            curr = arrLocal.pop()
+        else: # inner
+            curr = arrLocal.pop(i)
+
+    ret.append(curr)
+
+    return ret
