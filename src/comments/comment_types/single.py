@@ -118,7 +118,7 @@ def _parse_single(f, s):
         This function does NOT remove lines from the file. No matter what.
         If a line was soley a commend, then it is kept just as empty.
     '''
-    print(s, end='')
+
     if _find_normal_single(s) == None: # // not even in line
         return (f, s)
 

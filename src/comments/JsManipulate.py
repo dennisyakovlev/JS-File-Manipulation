@@ -1,6 +1,6 @@
 import os
 
-from src import utils
+from src.comments import utils
 
 def _isBaseCase(obj):
     ''' Determine whether object is property object.

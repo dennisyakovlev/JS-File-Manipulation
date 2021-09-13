@@ -1,7 +1,7 @@
 import os
-from src import jsdoc
-from src import single
-from src import multi
+from src.comments.comment_types import jsdoc
+from src.comments.comment_types import single
+from src.comments.comment_types import multi
 
 PROPERTY_NAME_KEY = 'name'
 PROPERTY_KEYS = {
