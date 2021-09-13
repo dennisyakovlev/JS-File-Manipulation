@@ -17,13 +17,16 @@ def _find_endJsDoc(s):
 def _parse_jsdoc(f, line):
     ''' If jsdoc is found, skip past all the commented lines.
 
-        This function DOES remove the jsdoc comment lines. They are not left in as
-        blank in the new file.
+        This function does NOT remove lines from the file. No matter what.
+        Blank lines are left in place of the jsdoc comment.
     '''
+    ret = ''
 
     if (_find_startJsDoc(line)):
         while line and not _find_endJsDoc(line):
             line = f.readline()
+            ret += '\n'
         line = f.readline()
+        ret += '\n'
 
-    return (f, line)
+    return (f, ret + line)

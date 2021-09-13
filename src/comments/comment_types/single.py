@@ -20,10 +20,10 @@ def _new_without_literal(s):
     return s[0: index]
 
 def _parse_single(f, s):
-    ''' If single line comment is found, remove it.
+    ''' If single line comment is found, remove the comment from the line.
 
         This function does NOT remove lines from the file. No matter what.
-        If a line was soley a commend, then it is kept just as empty.
+        If a line was soley a comment, then it is kept just as empty.
     '''
 
     if _find_normal_single(s) == None: # // not even in line
