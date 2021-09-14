@@ -37,60 +37,6 @@ def _find_indicies(s):
 
     return arr
 
-# should be able to match multiple sections for multiple inline /**/ comments
-
-# currently matches the // inside the /**/, need to check if inside a /**/ comment
-
-def _find_match(s, ignore, func):
-    ''' Assume <s> has valid string literals in it. 
-
-        <ignore> array from _remove_inner(_find_indicies(line))
-        <func> function to return match
-
-        <return> tuple of:
-            - start index of section which comment is found in
-            - index of start of comment
-    '''
-    print('the string', s)
-    j = 0
-    for i in range(len(ignore)):
-        ignore_elem = ignore[i]
-
-        match = func(s[j : ignore_elem[0]])
-        print('match', ignore_elem, match)
-        if not match == None: # found the comment
-            return (j, j + match.span()[0])
-
-        j = ignore_elem[1]
-
-    match = func(s[j : -1])
-
-    return (j, j + match.span()[0]) # comment is in last non string literal section
-    
-def _is_first(s, ty):
-    ''' Whether // appears before /* of vice versa.
-        If <ty> is 's' then, look for // first.
-        If <ty> is 'm' then look for /* first
-
-        Return true if selected character appears first OR 
-        the other character doesnt appear.
-    '''
-
-    first = None
-    second = None
-
-    if ty == 'm':
-        first = multi._find_normal_multi_start(s)
-        second = single._find_normal_single(s)
-    else:
-        first = single._find_normal_single(s)
-        second = multi._find_normal_multi_start(s)
-
-    if second is None:
-        return False
-
-    return first.span()[0] < second.span()[0]
-
 def _potential_comment(s):
     ''' Whether <s> has a potential comment of /* or //.
 
@@ -112,10 +58,11 @@ def _find_comment_beg(s):
     singleStart = single._find_normal_single(s)
     multiStart = multi._find_normal_multi_start(s)
 
-    sStart = singleStart.span()[0]
-    mStart = multiStart.span()[0]
 
     if (not singleStart == None) and (not multiStart == None): # both types found
+        sStart = singleStart.span()[0]
+        mStart = multiStart.span()[0]
+
         if sStart < mStart:
             return {
                 'type': 's',
@@ -130,16 +77,16 @@ def _find_comment_beg(s):
     if singleStart is None:
         return {
             'type': 'm',
-            'start': mStart
+            'start': multiStart.span()[0]
         }
     else:
         return {
             'type': 's',
-            'start': sStart
+            'start': singleStart.span()[0]
         }
 
 def _find(s):
-    ''' return array containing indicies in s of where comments
+    ''' return array containing indicies in <s> of where comments
         are [start, end) indicies and type 'm' or 's'. 
         return [] if no comments in line.
 

@@ -26,20 +26,12 @@ def _parse_single(f, s):
         If a line was soley a comment, then it is kept just as empty.
     '''
 
-    if _find_normal_single(s) == None: # // not even in line
-        return (f, s)
+    commentArr = ps._get_comments(s)
 
-    if utils._has_literal(s):
-        indices = ps._find_indicies(s) # match for when ", ', or ` exists in a line
-                                    # not a gaurentee that a string literal exists
+    if len(commentArr) != 0: # has atleast one comment
+        last = commentArr.pop() # // comment will always be last comment
 
-        if indices == []: # empty indicies indicate a literal character was found ONLY INSIDE a comment
-            return (f, _new_without_literal(s) + '\n')
+        if last['type'] == 's': # // comment
+            return (f, s[0 : last['span'][0]] + '\n')
 
-        indices = utils._remove_inner(indices) # see _remove_inner doc
-        indices = sorted(indices, key = lambda tupe : tupe[0]) # sort by first val
-
-        start_match = ps._find_match(s, indices, _find_normal_single) # find start of // comment
-        return (f, s[0: start_match] + '\n')
-
-    return (f, _new_without_literal(s) + '\n') # add newline to keep original file formatting 
+    return (f, s)
