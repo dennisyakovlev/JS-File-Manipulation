@@ -211,7 +211,7 @@ def _marge_j(j, matchArr, ret):
 # return unsupported comment type of 'u' and log to file
 # so user knows to remove manually
 
-def _temp(s):
+def _get_comments(s):
     ''' return array containing indicies in s of where comments
         are [start, end) indicies and type 'm' or 's'. return None if no comments in line.
         this function looks in line which are NOT complete comments.
@@ -242,7 +242,7 @@ def _temp(s):
 
             # incase something thats not support happens to be in a line
             try:
-                matchArr = _temp(s[j : ignore_elem[0]])
+                matchArr = _find(s[j : ignore_elem[0]])
             except:
                 return []
 
@@ -251,11 +251,13 @@ def _temp(s):
             j = ignore_elem[1]
 
         try:
-            matchArr = _temp(s[j : -1])
+            matchArr = _find(s[j : -1])
         except:
             return []
 
         _marge_j(j, matchArr, ret)
+
+        return ret
 
     # no literal characters
     return _find(s)
