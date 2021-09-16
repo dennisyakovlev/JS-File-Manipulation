@@ -66,11 +66,10 @@ def _quote_back_start(s):
 # need to go through and return indicies of found valid literals
 # as this is the original point of _find_indicies
 
-def _bracket_find(s, level = 0):
-    ''' Go through `` and look for any ${}
+def _parse_bracket(s, level = 0):
+    ''' parse a single ${} inside a ``
 
-        <return> index of ending of last valid ${}
-                 if no valid ${} found, return 0
+        <return> index of ending after closing }
     '''
 
     # needs to now account for inner `` and recurse
@@ -119,6 +118,23 @@ def _bracket_find(s, level = 0):
 
     return 0
 
+def _parse_brackets(s):
+    ''' parse through multiple ${} inside ``.
+
+        <return> index of last ending bracket of a ${}
+    '''
+
+    index = _parse_bracket(s)
+
+    i = 0
+    while index != 0:
+        i += index
+
+        index = _parse_bracket(s[i : ])
+
+    return i
+        
+
 def _quote_back_end(s):
     ''' Look for the end of a back quoted (``) string literal.
 
@@ -127,7 +143,7 @@ def _quote_back_end(s):
         Assume already inside a valid back quoted string literal.
     '''
 
-    endBracket = _bracket_find(s)
+    endBracket = _parse_brackets(s)
 
     if endBracket != 0:
         return endBracket
