@@ -78,6 +78,8 @@ def _parse_bracket(s, level = 0):
 
     i = 0 # the current index of the str which determines what to search
 
+    # Accounts for string literals inside ${} by skipping over them and only caring for /**/ comments
+
     if startBracket != None: # found a ${} section inside
                              # means potential for inner ``
         i = startBracket.span()[1]
@@ -181,6 +183,9 @@ def _find_indicies(s):
     # # inside the current indicies are VALID "" and '' comments, ignore all `
     # # now go about finding the `` comments 
     # [arr.append(match.span()) for match in _find_back_quote(s)]
+
+    # FIRST parse any `` comments, and that will return its respective list of ignore
+    # then parse "" and '' comments
 
     return arr
 
