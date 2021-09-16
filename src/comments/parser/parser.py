@@ -23,7 +23,131 @@ def _find_back_quote(s):
         string literal.
     '''
 
-    return re.finditer(r'`(\\`|[^`])*`', s)
+    return re.finditer('`(\\`|[^`])*`', s)
+
+# `` comments arent the same "" or '' comments
+
+LITERALS_PROPERTIES = {}
+
+def _quote_double_start(s):
+    ''' Look for the start of double quoted ("") string literal.
+    '''
+
+    return re.search(r'\"', s).span()[0]
+
+def _quote_double_end(s):
+    ''' Look for the end of double quoted ("") string literal.
+
+        Assume already inside a valid double quoted string literal.
+    '''
+
+    return re.search(r'[^(\\\")]\"', s).span()[1]
+
+def _quote_single_start(s):
+    ''' Look for the start of single quoted ('') string literal.
+    '''
+
+    return re.search(r'\'', s).span()[0]
+
+def _quote_single_end(s):
+    ''' Look for the end of single quoted ('') string literal.
+
+        Assume already inside a valid single quoted string literal.
+    '''
+
+    return re.search(r'[^(\\\')]\'', s).span()[1]
+
+def _quote_back_start(s):
+    ''' Look for the start of back quoted (``) string literal.
+    '''
+
+    return re.search(r'`', s).span()[0]
+
+# need to go through and return indicies of found valid literals
+# as this is the original point of _find_indicies
+
+def _bracket_find(s, level = 0):
+    ''' Go through `` and look for any ${}
+
+        <return> index of ending of last valid ${}
+                 if no valid ${} found, return 0
+    '''
+
+    # needs to now account for inner `` and recurse
+
+    startBracket = re.search('\${', s)
+
+    i = 0 # the current index of the str which determines what to search
+
+    if startBracket != None: # found a ${} section inside
+                             # means potential for inner ``
+        i = startBracket.span()[1]
+
+        multiCommentStart = multi._find_normal_multi_start(s[i : ])
+
+        if multiCommentStart != None: # found a /* character
+                                      # finding this outside literal means single line /**/ comment nested in the ${}
+            # NEED TO DO FOLLOWING
+            # OR encounter2 a ` outside a /**/ comment, which indicates a new literal, add a level and recurse
+
+            # found a /*, mean a /**/ comment exists
+            # must loop ignoring whats inside /**/ looking for closing }
+            # after loop, i will be after closing }
+            while True:
+                i += multiCommentStart.span()[1] # move past /*
+                multiCommentEnd = multi._find_normal_multi_end(s[i : ]) # find */
+                i += multiCommentEnd.span()[1] # move past */
+                
+                endBracket = re.search(r'}', s[i  : ]) # find }
+
+                multiCommentStart = multi._find_normal_multi_start(s[i : ]) # find potential /*
+                if multiCommentStart != None: # found new /*, will be a /**/ comment
+                    if multiCommentStart.span()[0] < endBracket.span()[0]: # the found } after /*
+                        continue
+                    else: # /**/ exists somewhere after closing } 
+                        i += endBracket.span()[1] # move past }
+                        break
+                else: # no more /**/ comments, found ending }
+                    i += endBracket.span()[1] # move past }
+                    break                
+            
+            # can now find ` normally ignore valid string literals since they cant exist inside
+            # a `` comment they just count as another character
+            i += re.search(r'[^(\\\`)]`', s[i : ]).span()[1]
+
+            return i
+
+    return 0
+
+def _quote_back_end(s):
+    ''' Look for the end of a back quoted (``) string literal.
+
+        <level> how many `` quotes down we are
+
+        Assume already inside a valid back quoted string literal.
+    '''
+
+    endBracket = _bracket_find(s)
+
+    if endBracket != 0:
+        return endBracket
+
+    return re.search(r'[^(\\\`)]`', s).span()[1] # no ${} means no possibilty for /**/ comment, first ` will be end
+
+LITERALS_PROPERTIES = {
+    '"': {
+        'start': _quote_double_start,
+        'end': _quote_double_end
+    },
+    "'": {
+        'start': _quote_single_start,
+        'end': _quote_single_end
+    }, 
+    '`': {
+        'start': _quote_back_start,
+        'end': _quote_back_end
+    }
+}
 
 def _find_indicies(s):
     ''' Find all the idicies of the string literal characters.
@@ -31,9 +155,16 @@ def _find_indicies(s):
 
     arr = []
 
-    [arr.append(match.span()) for match in _find_double_quote(s)]
-    [arr.append(match.span()) for match in _find_single_quote(s)]
-    [arr.append(match.span()) for match in _find_back_quote(s)]
+    for i in range(len(s)):
+        if s[i] in utils.LITERALS_ARR: # found literal character
+            pass
+
+    # [arr.append(match.span()) for match in _find_double_quote(s)]
+    # [arr.append(match.span()) for match in _find_single_quote(s)]
+    # print('curr', arr)
+    # # inside the current indicies are VALID "" and '' comments, ignore all `
+    # # now go about finding the `` comments 
+    # [arr.append(match.span()) for match in _find_back_quote(s)]
 
     return arr
 
@@ -180,6 +311,10 @@ def _get_comments(s):
         
         indices = utils._remove_inner(indices) # see _remove_inner doc
         indices = sorted(indices, key = lambda tupe : tupe[0]) # sort by first val
+
+        # at this point indicies is a list of tuples of which are [start, end) indicies
+        # of parts of the string to ignore since they are flagged literals and cannot
+        # contain a comment
 
         j = 0
         # loop through looking for sections which are not valid
