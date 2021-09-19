@@ -29,11 +29,26 @@ def _find_back_quote(s):
 
 LITERALS_PROPERTIES = {}
 
+def _comment_multi_start(s):
+    ''' Look for the start of multi line (/**/) comment.
+    '''
+
+    res = re.search(r'\/\*', s)
+    return res.span()[0] if res != None else -1
+
+def _comment_multi_end(s):
+    ''' Look for the end of multi line (/**/) comment.
+    '''
+
+    res = re.search(r'\*\/', s)
+    return res.span()[1] if res != None else -1
+
 def _quote_double_start(s):
     ''' Look for the start of double quoted ("") string literal.
     '''
 
-    return re.search(r'\"', s).span()[0]
+    res = re.search(r'\"', s)
+    return res.span()[0] if res != None else -1
 
 def _quote_double_end(s):
     ''' Look for the end of double quoted ("") string literal.
@@ -41,13 +56,15 @@ def _quote_double_end(s):
         Assume already inside a valid double quoted string literal.
     '''
 
-    return re.search(r'[^(\\\")]\"', s).span()[1]
+    res = re.search(r'[^(\\\")]\"', s)
+    return res.span()[1] if res != None else -1
 
 def _quote_single_start(s):
     ''' Look for the start of single quoted ('') string literal.
     '''
 
-    return re.search(r'\'', s).span()[0]
+    res = re.search(r'\'', s)
+    return res.span()[0] if res != None else -1
 
 def _quote_single_end(s):
     ''' Look for the end of single quoted ('') string literal.
@@ -55,16 +72,50 @@ def _quote_single_end(s):
         Assume already inside a valid single quoted string literal.
     '''
 
-    return re.search(r'[^(\\\')]\'', s).span()[1]
+    res = re.search(r'[^(\\\')]\'', s)
+    return res.span()[1] if res != None else -1
 
 def _quote_back_start(s):
     ''' Look for the start of back quoted (``) string literal.
     '''
 
-    return re.search(r'`', s).span()[0]
+    res = re.search(r'`', s)
+    return res.span()[1] if res != None else -1
 
 # need to go through and return indicies of found valid literals
 # as this is the original point of _find_indicies
+
+def _search_literals_until(s, char):
+    ''' search <s> for all literals until <char> is found outside a literal
+
+        search only "" and '' literals not ``
+
+        <return> index of found <char>
+    '''
+
+    if re.search(f'{char}', s) == None:
+        return 0
+
+    i = 0
+
+    while True:
+        currStr = s[i : ]
+
+        double = _quote_double_start(currStr) + 1 # add one to not index currStr later
+        single = _quote_single_start(currStr) + 1 # add one to not index currStr later
+        
+        character = re.search(f'{char}', currStr).span()[0]
+
+        if character >= double or character >= single: # if character is located before the start of either possible literals
+            i += character + len(char)
+            break
+
+        if double < single:
+            i += _quote_double_end(currStr)
+        else:
+            i += _quote_single_end(currStr)
+
+    return i
 
 def _parse_bracket(s, level = 0):
     ''' parse a single ${} inside a ``
@@ -79,31 +130,32 @@ def _parse_bracket(s, level = 0):
     i = 0 # the current index of the str which determines what to search
 
     # Accounts for string literals inside ${} by skipping over them and only caring for /**/ comments
-
     if startBracket != None: # found a ${} section inside
                              # means potential for inner ``
         i = startBracket.span()[1]
+        multiCommentStart = _search_literals_until(s[i : ], r'\/\*')
 
-        multiCommentStart = multi._find_normal_multi_start(s[i : ])
 
-        if multiCommentStart != None: # found a /* character
-                                      # finding this outside literal means single line /**/ comment nested in the ${}
+        # if multiCommentStart != None: # found a /* character
+        if multiCommentStart != 0 and multiCommentStart < _search_literals_until(s[i : ], r'}'): # found a /* character before a } character
+                                                                                                 # this does not make } the closing }
+                                                                                                 # finding this outside literal means single line /**/ comment nested in the ${}
             # NEED TO DO FOLLOWING
             # OR encounter2 a ` outside a /**/ comment, which indicates a new literal, add a level and recurse
 
-            # found a /*, mean a /**/ comment exists
+            # found a /*, means a /**/ comment exists
             # must loop ignoring whats inside /**/ looking for closing }
             # after loop, i will be after closing }
             while True:
-                i += multiCommentStart.span()[1] # move past /*
+                i += multiCommentStart # move past /*
                 multiCommentEnd = multi._find_normal_multi_end(s[i : ]) # find */
                 i += multiCommentEnd.span()[1] # move past */
                 
                 endBracket = re.search(r'}', s[i  : ]) # find }
 
-                multiCommentStart = multi._find_normal_multi_start(s[i : ]) # find potential /*
-                if multiCommentStart != None: # found new /*, will be a /**/ comment
-                    if multiCommentStart.span()[0] < endBracket.span()[0]: # the found } after /*
+                multiCommentStart = _search_literals_until(s[i : ], r'\/\*') # find potential /*
+                if multiCommentStart != 0: # found new /*, will be a /**/ comment
+                    if multiCommentStart < endBracket.span()[0]: # the found } after /*
                         continue
                     else: # /**/ exists somewhere after closing } 
                         i += endBracket.span()[1] # move past }
@@ -112,11 +164,103 @@ def _parse_bracket(s, level = 0):
                     i += endBracket.span()[1] # move past }
                     break                
             
-            # can now find ` normally ignore valid string literals since they cant exist inside
-            # a `` comment they just count as another character
-            i += re.search(r'[^(\\\`)]`', s[i : ]).span()[1]
-
             return i
+
+        return i + _search_literals_until(s[i : ], '}')
+
+    return 0
+
+class Hold:
+    def __init__(self, ty, val) -> None:
+        self.ty = ty
+        self.val = val
+
+    def lessThan(self, num):
+
+        return False if self.val == -1 else self.val < num
+
+    def __str__(self) -> str:
+        return f'{self.ty} {self.val}, '
+
+def _temp(currStr):
+
+    return [
+        Hold('d', _quote_double_start(currStr)),
+        Hold('s', _quote_single_start(currStr)),
+        Hold('m', _comment_multi_start(currStr))
+    ]
+
+def _search_until(s, char):
+    ''' Search past '', "", and /**/ in s until char is found
+
+        <return> index of found char, 0 if not found
+    '''
+
+    if re.search(f'{char}', s) == None:
+        return 0
+
+    i = 0
+
+    while True:
+        currStr = s[i : ]
+
+        arr = _temp(currStr)
+
+        character = re.search(f'{char}', currStr).span()[1]
+
+        # WAS HERE
+
+        minHold = None
+        # find smallest Hold
+        for k in range(len(arr)):
+            if minHold == None:
+                if arr[k].val != -1:
+                    minHold = arr[k]
+            else:
+                if arr[k].lessThan(minHold.val):
+                    minHold = arr[k]
+
+        i += 1 # increment past the found starting character so the the find end
+               # function does not pick it up
+        currStr = s[i : ]
+
+        if minHold.ty == 's':
+            i += _quote_single_end(currStr)
+        elif minHold.ty == 'd':
+            i += _quote_double_end(currStr)
+        else:
+            i += _comment_multi_end(currStr)
+
+        if not True in [i.lessThan(character) for i in arr]: # if character is located before the start of any found
+            i += re.search(f'{char}', s[i : ]).span()[1]
+            break
+
+    return i
+
+def _parse_bracket_temp(s, level = 0):
+    ''' parse a single ${} inside a ``
+
+        <return> index of ending after closing }
+    '''
+
+    # needs to now account for inner `` and recurse
+
+    startBracket = re.search('\${', s)
+
+    i = 0 # the current index of the str which determines what to search
+
+    # Accounts for string literals inside ${} by skipping over them and only caring for /**/ comments
+    if startBracket != None: # found a ${} section inside
+                             # means potential for inner ``
+        i = startBracket.span()[1]
+
+        endBracket = _search_until(s[i : ], '}')
+        innerBack = _search_until(s[i : ], '`')
+
+        if endBracket < innerBack: # found } before an inner `` quote
+            return i + endBracket
+        else: # found inner `` before end }
+            return -1 # should recurse
 
     return 0
 
@@ -125,18 +269,21 @@ def _parse_brackets(s):
 
         <return> index of last ending bracket of a ${}
     '''
+    print('line:', s)
 
-    index = _parse_bracket(s)
-
-    i = 0
+    index = _parse_bracket_temp(s)
+    i = index
     while index != 0:
+        print(s[ : i])
+        index = _parse_bracket_temp(s[i : ])
         i += index
-
-        index = _parse_bracket(s[i : ])
-
-    return i
         
+    print(s[:i])
 
+
+
+    return i + re.search(r'`', s[i : ]).span()[1]
+        
 def _quote_back_end(s):
     ''' Look for the end of a back quoted (``) string literal.
 
@@ -146,7 +293,6 @@ def _quote_back_end(s):
     '''
 
     endBracket = _parse_brackets(s)
-
     if endBracket != 0:
         return endBracket
 
