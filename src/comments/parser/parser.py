@@ -80,10 +80,12 @@ def _quote_back_start(s):
     '''
 
     res = re.search(r'`', s)
-    return res.span()[1] if res != None else -1
+    return res.span()[0] if res != None else -1
 
-# need to go through and return indicies of found valid literals
-# as this is the original point of _find_indicies
+class Info:
+    def __init__(self, index, arr) -> None:
+        self.index = index
+        self.arr = arr
 
 class Hold:
     def __init__(self, ty, val) -> None:
@@ -104,9 +106,10 @@ def _search_until(s, char):
     '''
 
     if re.search(f'{char}', s) == None:
-        return 0
+        return Info(0, [])
 
     i = 0
+    retArr = []
 
     while True:
         currStr = s[i : ]
@@ -131,22 +134,24 @@ def _search_until(s, char):
 
         tempI = i
 
-        i += 1 # increment past the found starting character so the the find end
-               # function does not pick it up
-        currStr = s[i : ]
-
         if minHold == None:
             pass
-        elif minHold.ty == 's':
-            i += _quote_single_end(currStr)
-        elif minHold.ty == 'd':
-            i += _quote_double_end(currStr)
         else:
-            i += _comment_multi_end(currStr)
+            i += minHold.val
+            currStr = s[i : ]
+            if minHold.ty == 's':
+                i += _quote_single_end(currStr)
+                retArr.append((tempI + minHold.val, i))
+            elif minHold.ty == 'd':
+                i += _quote_double_end(currStr)
+                retArr.append((tempI + minHold.val, i))
+            else:
+                i += _comment_multi_end(currStr)
 
         if not True in [j.lessThan(character) for j in arr]: # if character is located before the start of any found
-            # i += re.search(f'{char}', s[i : ]).span()[1]
-            return tempI + re.search(f'{char}', s[tempI : ]).span()[1]
+            if minHold != None and (minHold.ty == 's' or minHold.ty == 'd'):
+                retArr.pop()
+            return Info(tempI + re.search(f'{char}', s[tempI : ]).span()[1], retArr)
 
 def _parse_bracket(s):
     ''' parse a single ${} inside a ``
@@ -163,16 +168,13 @@ def _parse_bracket(s):
         i = startBracket.span()[1]
 
         endBracket = _search_until(s[i : ], '}')
-        innerBack = _search_until(s[i : ], '`')
 
-        if endBracket < innerBack: # found } before an inner `` quote
-            return i + endBracket
-        else: # found inner `` before end }
-            res = _parse_bracket(s[i : innerBack : ]) # go through all ${}
-            endingBracket = i + innerBack + res # ending inner bracket
-            return endingBracket + re.search(r'[^(\\\`)]`', s[endingBracket : ]).span()[1] # find closing `
+        arr = [(0, max(i - 2, 0))] 
+        [arr.append((i + j[0], i + j[1])) for j in endBracket.arr]
 
-    return 0
+        return Info(i + endBracket.index, arr)
+
+    return Info(0, [])
 
 def _parse_brackets(s):
     ''' parse through multiple ${} inside ``.
@@ -180,18 +182,22 @@ def _parse_brackets(s):
         <return> index of last ending bracket of a ${}
     '''
 
-    index = _parse_bracket(s)
-    i = index
-    while index != 0:
-        index = _parse_bracket(s[i : ])
-        i += index
+    res = _parse_bracket(s)
+    i = res.index
+    arr = res.arr
+    while res.index != 0:
+        res = _parse_bracket_temp(s[i : ], level)
+        [arr.append((i + j[0], i + j[1])) for j in res.arr]
+        i += res.index
 
     res = re.search(r'[^(\\\`)]`', s[i : ]) # ignore \`
     if res == None: # possibly cannot find ` since its the end
-        print(s)
-        return i + re.search(r'`', s[i : ]).span()[1]
+        end = re.search(r'`', s[i : ]).span()[1]
+        arr.append((i, i + end))
+        return Info(i + end, arr)
 
-    return i + res.span()[1]
+    arr.append((i, i + res.span()[1]))
+    return Info(i, arr)
         
 def _quote_back_end(s):
     ''' Look for the end of a back quoted (``) string literal.
@@ -202,10 +208,13 @@ def _quote_back_end(s):
     '''
 
     endBracket = _parse_brackets(s)
-    if endBracket != 0:
+    if endBracket.index != 0:
+        i = endBracket.index
+
         return endBracket
 
-    return re.search(r'[^(\\\`)]`', s).span()[1] # no ${} means no possibilty for /**/ comment, first ` will be end
+    end = re.search(r'[^(\\\`)]`', s).span()[1]
+    return Info(end, [(0, end)]) # no ${} means no possibilty for /**/ comment, first ` will be end
 
 LITERALS_PROPERTIES = {
     '"': {
