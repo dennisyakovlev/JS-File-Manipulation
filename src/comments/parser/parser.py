@@ -168,6 +168,10 @@ def _parse_bracket(s):
         i = startBracket.span()[1]
 
         endBracket = _search_until(s[i : ], '}')
+        # endBack = _search_until(s[i : ], '`')
+
+        # if endBack.index < endBracket.index:
+        #     return Info(0, [])
 
         arr = [(0, max(i - 2, 0))] 
         [arr.append((i + j[0], i + j[1])) for j in endBracket.arr]
@@ -185,18 +189,15 @@ def _parse_brackets(s):
     res = _parse_bracket(s)
     i = res.index
     arr = res.arr
-    while res.index != 0:
-        res = _parse_bracket_temp(s[i : ], level)
+    uh = re.search('`', s[i : ]).span()[1]
+    while True:
+        res = _parse_bracket(s[i : ])
+        uh = re.search('`', s[i : ]).span()[1]
+        if uh < res.index or res.index == 0:
+            break
         [arr.append((i + j[0], i + j[1])) for j in res.arr]
         i += res.index
 
-    res = re.search(r'[^(\\\`)]`', s[i : ]) # ignore \`
-    if res == None: # possibly cannot find ` since its the end
-        end = re.search(r'`', s[i : ]).span()[1]
-        arr.append((i, i + end))
-        return Info(i + end, arr)
-
-    arr.append((i, i + res.span()[1]))
     return Info(i, arr)
         
 def _quote_back_end(s):
@@ -207,14 +208,14 @@ def _quote_back_end(s):
         Assume already inside a valid back quoted string literal.
     '''
 
-    endBracket = _parse_brackets(s)
-    if endBracket.index != 0:
-        i = endBracket.index
+    endBracket = _parse_brackets(s) # get end of ${}
 
-        return endBracket
+    end = re.search(r'(^`)|([^(\\)]`)', s[endBracket.index : ]).span()[1] # find closing `
 
-    end = re.search(r'[^(\\\`)]`', s).span()[1]
-    return Info(end, [(0, end)]) # no ${} means no possibilty for /**/ comment, first ` will be end
+    endBracket.arr.append((endBracket.index, endBracket.index + end))
+    endBracket.index += end
+
+    return endBracket
 
 LITERALS_PROPERTIES = {
     '"': {
@@ -232,26 +233,28 @@ LITERALS_PROPERTIES = {
 }
 
 def _find_indicies(s):
-    ''' Find all the idicies of the string literal characters.
+    ''' Find all the indicies of the string literal characters.
     '''
 
-    arr = []
+    res = _search_until(s, '`')
 
-    for i in range(len(s)):
-        if s[i] in utils.LITERALS_ARR: # found literal character
-            pass
+    if res.index == 0: # didnt find `` literal
+        return _search_until(s, r'\n')
+    
+    ret = Info(0, [])
+    while True:
+        start = _search_until(s[ret.index : ], '`') # starting `
+        [ret.arr.append((ret.index + i[0], ret.index + i[1])) for i in start.arr] # add literals outside of ``
+        ret.index += start.index # go to starting `
 
-    # [arr.append(match.span()) for match in _find_double_quote(s)]
-    # [arr.append(match.span()) for match in _find_single_quote(s)]
-    # print('curr', arr)
-    # # inside the current indicies are VALID "" and '' comments, ignore all `
-    # # now go about finding the `` comments 
-    # [arr.append(match.span()) for match in _find_back_quote(s)]
+        if _quote_back_start(s[ret.index : ]) == -1:
+            break 
 
-    # FIRST parse any `` comments, and that will return its respective list of ignore
-    # then parse "" and '' comments
+        end = _quote_back_end(s[ret.index : ]) # ending 
+        [ret.arr.append((ret.index + i[0], ret.index + i[1])) for i in end.arr] # add literals inside of ``
+        ret.index += end.index # go to after ending `
 
-    return arr
+    return ret
 
 def _potential_comment(s):
     ''' Whether <s> has a potential comment of /* or //.
