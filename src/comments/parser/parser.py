@@ -4,29 +4,6 @@ from src.comments.comment_types import single
 from src.comments.comment_types import multi
 from src.comments import utils
 
-def _find_double_quote(s):
-    ''' Look for a pattern which match that of a double quoted ("")
-        string literal.
-    '''
-
-    return re.finditer(r'\"(\\\"|[^\"])*\"', s)
-
-def _find_single_quote(s):
-    ''' Look for a pattern which match that of a single quoted ('')
-        string literal.
-    '''
-
-    return re.finditer(r'\'(\\\'|[^\'])*\'', s)
-
-def _find_back_quote(s):
-    ''' Look for a pattern which match that of a back quoted (``)
-        string literal.
-    '''
-
-    return re.finditer('`(\\`|[^`])*`', s)
-
-# `` comments arent the same "" or '' comments
-
 LITERALS_PROPERTIES = {}
 
 def _comment_multi_start(s):
@@ -119,6 +96,9 @@ def _search_until(s, char):
             Hold('s', _quote_single_start(currStr)),
             Hold('m', _comment_multi_start(currStr))
         ]
+
+        if not False in [i.val == -1 for i in arr]:
+            return Info(i, retArr)
 
         character = re.search(f'{char}', currStr).span()[0]
 
@@ -232,6 +212,8 @@ LITERALS_PROPERTIES = {
     }
 }
 
+# want to include starting ` in the index tuples to exclude
+
 def _find_indicies(s):
     ''' Find all the indicies of the string literal characters.
     '''
@@ -239,8 +221,8 @@ def _find_indicies(s):
     res = _search_until(s, '`')
 
     if res.index == 0: # didnt find `` literal
-        return _search_until(s, r'\n')
-    
+        return _search_until(s, '//')
+
     ret = Info(0, [])
     while True:
         start = _search_until(s[ret.index : ], '`') # starting `
@@ -392,18 +374,16 @@ def _get_comments(s):
     '''
 
     ret = []
-
-    indices = _find_indicies(s) # match for all string literal characters in a line
-                                # not a gaurentee that a valid string literal exists
+    res = _find_indicies(s) # match for all string literal characters in a line
+                            # not a gaurentee that a valid string literal exists
+    indices = res.arr
     if len(indices) != 0: # empty indicies indicate no possiblly valid string literals
         
-        indices = utils._remove_inner(indices) # see _remove_inner doc
         indices = sorted(indices, key = lambda tupe : tupe[0]) # sort by first val
 
         # at this point indicies is a list of tuples of which are [start, end) indicies
         # of parts of the string to ignore since they are flagged literals and cannot
         # contain a comment
-
         j = 0
         # loop through looking for sections which are not valid
         # string literals
@@ -411,19 +391,19 @@ def _get_comments(s):
             ignore_elem = indices[i]
 
             # incase something thats not support happens to be in a line
-            try:
-                matchArr = _find(s[j : ignore_elem[0]])
-            except:
-                return []
+            # try:
+            matchArr = _find(s[j : ignore_elem[0]])
+            # except:
+                # return []
 
             _marge_j(j, matchArr, ret)
 
             j = ignore_elem[1]
 
-        try:
-            matchArr = _find(s[j : -1])
-        except:
-            return []
+        # try:
+        matchArr = _find(s[j : -1])
+        # except:
+            # return []
 
         _marge_j(j, matchArr, ret)
 
