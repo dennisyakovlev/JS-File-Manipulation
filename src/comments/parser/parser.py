@@ -1,12 +1,13 @@
 # Author: Dennis Yakovlev
 
-# Filed related to the combined parsing of a line in a file.
+# File related to the combined parsing of a line in a file.
 
 import re
 
 from src.comments.parser import parser_single as single
 from src.comments.parser import parser_literals as literals
 from src.comments.parser import parser_multi as multi
+from src.comments.parser import parser_utils as utils
 
 LITERALS_PROPERTIES = {}
 
@@ -17,23 +18,6 @@ def _quote_back_start(s):
     res = re.search(r'`', s)
     return res.span()[0] if res != None else -1
 
-class Info:
-    def __init__(self, index, arr) -> None:
-        self.index = index
-        self.arr = arr
-
-class Hold:
-    def __init__(self, ty, val) -> None:
-        self.ty = ty
-        self.val = val
-
-    def lessThan(self, num):
-
-        return False if self.val == -1 else self.val < num
-
-    def __str__(self) -> str:
-        return f'{self.ty} {self.val}, '
-
 def _search_until(s, char):
     ''' Search past '', "", and /**/ in s until char is found
 
@@ -41,7 +25,7 @@ def _search_until(s, char):
     '''
 
     if re.search(f'{char}', s) == None:
-        return Info(0, [])
+        return utils.Info(0, [])
 
     i = 0
     retArr = []
@@ -50,13 +34,13 @@ def _search_until(s, char):
         currStr = s[i : ]
 
         arr = [
-            Hold('d', literals._quote_double_start(currStr)),
-            Hold('s', literals._quote_single_start(currStr)),
-            Hold('m', multi._comment_multi_start(currStr))
+            utils.Hold('d', literals._quote_double_start(currStr)),
+            utils.Hold('s', literals._quote_single_start(currStr)),
+            utils.Hold('m', multi._comment_multi_start(currStr))
         ]
 
         if not False in [i.val == -1 for i in arr]:
-            return Info(i, retArr)
+            return utils.Info(i, retArr)
 
         character = re.search(f'{char}', currStr).span()[0]
 
@@ -89,7 +73,7 @@ def _search_until(s, char):
         if not True in [j.lessThan(character) for j in arr]: # if character is located before the start of any found
             if minHold != None and (minHold.ty == 's' or minHold.ty == 'd'):
                 retArr.pop()
-            return Info(tempI + re.search(f'{char}', s[tempI : ]).span()[1], retArr)
+            return utils.Info(tempI + re.search(f'{char}', s[tempI : ]).span()[1], retArr)
 
 def _parse_bracket(s):
     ''' parse a single ${} inside a ``
@@ -114,9 +98,9 @@ def _parse_bracket(s):
         arr = [(0, max(i - 2, 0))] 
         [arr.append((i + j[0], i + j[1])) for j in endBracket.arr]
 
-        return Info(i + endBracket.index, arr)
+        return utils.Info(i + endBracket.index, arr)
 
-    return Info(0, [])
+    return utils.Info(0, [])
 
 def _parse_brackets(s):
     ''' parse through multiple ${} inside ``.
@@ -136,7 +120,7 @@ def _parse_brackets(s):
         [arr.append((i + j[0], i + j[1])) for j in res.arr]
         i += res.index
 
-    return Info(i, arr)
+    return utils.Info(i, arr)
         
 def _quote_back_end(s):
     ''' Look for the end of a back quoted (``) string literal.
@@ -179,7 +163,7 @@ def _find_indicies(s):
     if res.index == 0: # didnt find `` literal
         return _search_until(s, '//')
 
-    ret = Info(0, [])
+    ret = utils.Info(0, [])
     while True:
         start = _search_until(s[ret.index : ], '`') # starting `
         [ret.arr.append((ret.index + i[0], ret.index + i[1])) for i in start.arr] # add literals outside of ``
