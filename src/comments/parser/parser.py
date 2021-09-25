@@ -1,8 +1,8 @@
 import re
 
-from src.comments.comment_types import single
+from src.comments.parser import parser_single as single
+from src.comments.parser import parser_literals as literals
 from src.comments.comment_types import multi
-from src.comments import utils
 
 LITERALS_PROPERTIES = {}
 
@@ -18,38 +18,6 @@ def _comment_multi_end(s):
     '''
 
     res = re.search(r'\*\/', s)
-    return res.span()[1] if res != None else -1
-
-def _quote_double_start(s):
-    ''' Look for the start of double quoted ("") string literal.
-    '''
-
-    res = re.search(r'\"', s)
-    return res.span()[0] if res != None else -1
-
-def _quote_double_end(s):
-    ''' Look for the end of double quoted ("") string literal.
-
-        Assume already inside a valid double quoted string literal.
-    '''
-
-    res = re.search(r'[^(\\\")]\"', s)
-    return res.span()[1] if res != None else -1
-
-def _quote_single_start(s):
-    ''' Look for the start of single quoted ('') string literal.
-    '''
-
-    res = re.search(r'\'', s)
-    return res.span()[0] if res != None else -1
-
-def _quote_single_end(s):
-    ''' Look for the end of single quoted ('') string literal.
-
-        Assume already inside a valid single quoted string literal.
-    '''
-
-    res = re.search(r'[^(\\\')]\'', s)
     return res.span()[1] if res != None else -1
 
 def _quote_back_start(s):
@@ -92,8 +60,8 @@ def _search_until(s, char):
         currStr = s[i : ]
 
         arr = [
-            Hold('d', _quote_double_start(currStr)),
-            Hold('s', _quote_single_start(currStr)),
+            Hold('d', literals._quote_double_start(currStr)),
+            Hold('s', literals._quote_single_start(currStr)),
             Hold('m', _comment_multi_start(currStr))
         ]
 
@@ -120,10 +88,10 @@ def _search_until(s, char):
             i += minHold.val
             currStr = s[i : ]
             if minHold.ty == 's':
-                i += _quote_single_end(currStr)
+                i += literals._quote_single_end(currStr)
                 retArr.append((tempI + minHold.val, i))
             elif minHold.ty == 'd':
-                i += _quote_double_end(currStr)
+                i += literals._quote_double_end(currStr)
                 retArr.append((tempI + minHold.val, i))
             else:
                 i += _comment_multi_end(currStr)
@@ -199,20 +167,18 @@ def _quote_back_end(s):
 
 LITERALS_PROPERTIES = {
     '"': {
-        'start': _quote_double_start,
-        'end': _quote_double_end
+        'start': literals._quote_double_start,
+        'end': literals._quote_double_end
     },
     "'": {
-        'start': _quote_single_start,
-        'end': _quote_single_end
+        'start': literals._quote_single_start,
+        'end': literals._quote_single_end
     }, 
     '`': {
         'start': _quote_back_start,
         'end': _quote_back_end
     }
 }
-
-# want to include starting ` in the index tuples to exclude
 
 def _find_indicies(s):
     ''' Find all the indicies of the string literal characters.
