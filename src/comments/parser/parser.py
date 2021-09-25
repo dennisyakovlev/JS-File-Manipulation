@@ -5,139 +5,12 @@
 import re
 
 from src.comments.parser import parser_single as single
+from src.comments.parser import parser_back as back
 from src.comments.parser import parser_literals as literals
 from src.comments.parser import parser_multi as multi
 from src.comments.parser import parser_utils as utils
 
 LITERALS_PROPERTIES = {}
-
-def _quote_back_start(s):
-    ''' Look for the start of back quoted (``) string literal.
-    '''
-
-    res = re.search(r'`', s)
-    return res.span()[0] if res != None else -1
-
-def _search_until(s, char):
-    ''' Search past '', "", and /**/ in s until char is found
-
-        <return> index of found char, 0 if not found
-    '''
-
-    if re.search(f'{char}', s) == None:
-        return utils.Info(0, [])
-
-    i = 0
-    retArr = []
-
-    while True:
-        currStr = s[i : ]
-
-        arr = [
-            utils.Hold('d', literals._quote_double_start(currStr)),
-            utils.Hold('s', literals._quote_single_start(currStr)),
-            utils.Hold('m', multi._comment_multi_start(currStr))
-        ]
-
-        if not False in [i.val == -1 for i in arr]:
-            return utils.Info(i, retArr)
-
-        character = re.search(f'{char}', currStr).span()[0]
-
-        minHold = None
-        # find smallest Hold
-        for k in range(len(arr)):
-            if minHold == None:
-                if arr[k].val != -1:
-                    minHold = arr[k]
-            else:
-                if arr[k].lessThan(minHold.val):
-                    minHold = arr[k]
-
-        tempI = i
-
-        if minHold == None:
-            pass
-        else:
-            i += minHold.val
-            currStr = s[i : ]
-            if minHold.ty == 's':
-                i += literals._quote_single_end(currStr)
-                retArr.append((tempI + minHold.val, i))
-            elif minHold.ty == 'd':
-                i += literals._quote_double_end(currStr)
-                retArr.append((tempI + minHold.val, i))
-            else:
-                i += multi._comment_multi_end(currStr)
-
-        if not True in [j.lessThan(character) for j in arr]: # if character is located before the start of any found
-            if minHold != None and (minHold.ty == 's' or minHold.ty == 'd'):
-                retArr.pop()
-            return utils.Info(tempI + re.search(f'{char}', s[tempI : ]).span()[1], retArr)
-
-def _parse_bracket(s):
-    ''' parse a single ${} inside a ``
-
-        <return> index of ending after closing }
-    '''
-
-    startBracket = re.search('\${', s)
-
-    i = 0 # the current index of the str which determines what to search
-
-    if startBracket != None: # found a ${} section inside
-                             # means potential for inner ``
-        i = startBracket.span()[1]
-
-        endBracket = _search_until(s[i : ], '}')
-        # endBack = _search_until(s[i : ], '`')
-
-        # if endBack.index < endBracket.index:
-        #     return Info(0, [])
-
-        arr = [(0, max(i - 2, 0))] 
-        [arr.append((i + j[0], i + j[1])) for j in endBracket.arr]
-
-        return utils.Info(i + endBracket.index, arr)
-
-    return utils.Info(0, [])
-
-def _parse_brackets(s):
-    ''' parse through multiple ${} inside ``.
-
-        <return> index of last ending bracket of a ${}
-    '''
-
-    res = _parse_bracket(s)
-    i = res.index
-    arr = res.arr
-    uh = re.search('`', s[i : ]).span()[1]
-    while True:
-        res = _parse_bracket(s[i : ])
-        uh = re.search('`', s[i : ]).span()[1]
-        if uh < res.index or res.index == 0:
-            break
-        [arr.append((i + j[0], i + j[1])) for j in res.arr]
-        i += res.index
-
-    return utils.Info(i, arr)
-        
-def _quote_back_end(s):
-    ''' Look for the end of a back quoted (``) string literal.
-
-        <level> how many `` quotes down we are
-
-        Assume already inside a valid back quoted string literal.
-    '''
-
-    endBracket = _parse_brackets(s) # get end of ${}
-
-    end = re.search(r'(^`)|([^(\\)]`)', s[endBracket.index : ]).span()[1] # find closing `
-
-    endBracket.arr.append((endBracket.index, endBracket.index + end))
-    endBracket.index += end
-
-    return endBracket
 
 LITERALS_PROPERTIES = {
     '"': {
@@ -149,8 +22,8 @@ LITERALS_PROPERTIES = {
         'end': literals._quote_single_end
     }, 
     '`': {
-        'start': _quote_back_start,
-        'end': _quote_back_end
+        'start': back._quote_back_start,
+        'end': back._quote_back_end
     }
 }
 
@@ -158,21 +31,21 @@ def _find_indicies(s):
     ''' Find all the indicies of the string literal characters.
     '''
 
-    res = _search_until(s, '`')
+    res = utils._search_until(s, '`')
 
     if res.index == 0: # didnt find `` literal
-        return _search_until(s, '//')
+        return utils._search_until(s, '//')
 
     ret = utils.Info(0, [])
     while True:
-        start = _search_until(s[ret.index : ], '`') # starting `
+        start = utils._search_until(s[ret.index : ], '`') # starting `
         [ret.arr.append((ret.index + i[0], ret.index + i[1])) for i in start.arr] # add literals outside of ``
         ret.index += start.index # go to starting `
 
-        if _quote_back_start(s[ret.index : ]) == -1:
+        if back._quote_back_start(s[ret.index : ]) == -1:
             break 
 
-        end = _quote_back_end(s[ret.index : ]) # ending 
+        end = back._quote_back_end(s[ret.index : ]) # ending 
         [ret.arr.append((ret.index + i[0], ret.index + i[1])) for i in end.arr] # add literals inside of ``
         ret.index += end.index # go to after ending `
 
