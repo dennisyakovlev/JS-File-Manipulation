@@ -1,24 +1,14 @@
+# Author: Dennis Yakovlev
+
+# Filed related to the combined parsing of a line in a file.
+
 import re
 
 from src.comments.parser import parser_single as single
 from src.comments.parser import parser_literals as literals
-from src.comments.comment_types import multi
+from src.comments.parser import parser_multi as multi
 
 LITERALS_PROPERTIES = {}
-
-def _comment_multi_start(s):
-    ''' Look for the start of multi line (/**/) comment.
-    '''
-
-    res = re.search(r'\/\*', s)
-    return res.span()[0] if res != None else -1
-
-def _comment_multi_end(s):
-    ''' Look for the end of multi line (/**/) comment.
-    '''
-
-    res = re.search(r'\*\/', s)
-    return res.span()[1] if res != None else -1
 
 def _quote_back_start(s):
     ''' Look for the start of back quoted (``) string literal.
@@ -62,7 +52,7 @@ def _search_until(s, char):
         arr = [
             Hold('d', literals._quote_double_start(currStr)),
             Hold('s', literals._quote_single_start(currStr)),
-            Hold('m', _comment_multi_start(currStr))
+            Hold('m', multi._comment_multi_start(currStr))
         ]
 
         if not False in [i.val == -1 for i in arr]:
@@ -94,7 +84,7 @@ def _search_until(s, char):
                 i += literals._quote_double_end(currStr)
                 retArr.append((tempI + minHold.val, i))
             else:
-                i += _comment_multi_end(currStr)
+                i += multi._comment_multi_end(currStr)
 
         if not True in [j.lessThan(character) for j in arr]: # if character is located before the start of any found
             if minHold != None and (minHold.ty == 's' or minHold.ty == 'd'):
