@@ -4,10 +4,10 @@
 
 import re
 
-from src.comments.parser import parser_single as single
-from src.comments.parser import parser_back as back
-from src.comments.parser import parser_literals as literals
-from src.comments.parser import parser_multi as multi
+from src.comments.parser.comments import parser_single as single
+from src.comments.parser.strings import parser_back as back
+from src.comments.parser.strings import parser_literals as literals
+from src.comments.parser.comments import parser_multi as multi
 from src.comments.parser import parser_utils as utils
 
 LITERALS_PROPERTIES = {}

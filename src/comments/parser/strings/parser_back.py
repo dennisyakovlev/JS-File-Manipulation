@@ -5,7 +5,6 @@
 # parsing rules.
 
 import re
-from src.comments.parser import parser_literals as literals
 from src.comments.parser import parser_utils as utils
 
 def _quote_back_start(s):
@@ -29,11 +28,7 @@ def _parse_bracket(s):
                              # means potential for inner ``
         i = startBracket.span()[1]
 
-        endBracket = _search_until(s[i : ], '}')
-        # endBack = _search_until(s[i : ], '`')
-
-        # if endBack.index < endBracket.index:
-        #     return Info(0, [])
+        endBracket = utils._search_until(s[i : ], '}')
 
         arr = [(0, max(i - 2, 0))] 
         [arr.append((i + j[0], i + j[1])) for j in endBracket.arr]
