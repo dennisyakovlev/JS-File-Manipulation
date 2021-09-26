@@ -14,19 +14,33 @@ def _find_endJsDoc(s):
 
     return re.search('\*\/$', s)
 
-def _parse_jsdoc(f, line):
+def _parse_jsdoc(f, line, parse):
     ''' If jsdoc is found, skip past all the commented lines.
 
         This function does NOT remove lines from the file. No matter what.
         Blank lines are left in place of the jsdoc comment.
     '''
+
     ret = ''
+    parsed = False
 
     if (_find_startJsDoc(line)):
+        parsed = True
         while line and not _find_endJsDoc(line):
+            if parse:
+                ret += '\n'
+            else:
+                ret += line
             line = f.readline()
+            
+        if parse:
             ret += '\n'
+        else:
+            ret += line
         line = f.readline()
-        ret += '\n'
 
-    return (f, ret + line)
+    return {
+        'file': f,
+        'line': ret + line,
+        'parsed': parsed
+    }
