@@ -10,8 +10,6 @@ from src.comments.parser.strings import parser_literals as literals
 from src.comments.parser.comments import parser_multi as multi
 from src.comments.parser import parser_utils as utils
 
-LITERALS_PROPERTIES = {}
-
 LITERALS_PROPERTIES = {
     '"': {
         'start': literals._quote_double_start,
@@ -180,16 +178,16 @@ def _get_comments(s):
         str = 'a' /* make str a when in dir C://
                      something
                      something */
-        this function would only be used on first line, then the multi
-        function would take care of next 2 lines looking for end
+        this function would only be used on first line, then another
+        function would take care of next 2 lines looking for end of /**/
 
-        <s> should be a raw line
+        <s> should be a string represeting line to parse
     '''
-
     ret = []
+
     res = _find_indicies(s) # match for all string literal characters in a line
-                            # not a gaurentee that a valid string literal exists
     indices = res.arr
+
     if len(indices) != 0: # empty indicies indicate no possiblly valid string literals
         
         indices = sorted(indices, key = lambda tupe : tupe[0]) # sort by first val
@@ -203,24 +201,17 @@ def _get_comments(s):
         for i in range(len(indices)):
             ignore_elem = indices[i]
 
-            # incase something thats not support happens to be in a line
-            # try:
-            matchArr = _find(s[j : ignore_elem[0]])
-            # except:
-                # return []
+            matchArr = utils._search_comments(s[j : ignore_elem[0]])
 
             _marge_j(j, matchArr, ret)
 
             j = ignore_elem[1]
 
-        # try:
-        matchArr = _find(s[j : -1])
-        # except:
-            # return []
+        matchArr = utils._search_comments(s[j : -1])
 
         _marge_j(j, matchArr, ret)
 
         return ret
 
     # no literal characters
-    return _find(s)
+    return utils._search_comments(s)
