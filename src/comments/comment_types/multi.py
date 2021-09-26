@@ -6,12 +6,11 @@
 from src.comments.parser import parser as ps
 from src.comments.parser.comments import parser_multi as multi
 
-# note when parsing a multiline comment,
-# do not exclude the entire line of the ending multiline comment
-# instead parse to the closing */
-
 def _parse_multi(f, line, parse):
-    '''
+    ''' If multline (/**/) comment is found, remove it from the line.
+
+        If multiline comment spanning multiple lines is found, remove
+        it.
     '''
 
     commentArr = ps._get_comments(line)
