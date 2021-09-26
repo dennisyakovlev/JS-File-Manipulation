@@ -46,13 +46,20 @@ def _parse_brackets(s):
     res = _parse_bracket(s)
     i = res.index
     arr = res.arr
-    uh = re.search('`', s[i : ]).span()[1]
     while True:
-        res = _parse_bracket(s[i : ])
-        uh = re.search('`', s[i : ]).span()[1]
-        if uh < res.index or res.index == 0:
+        currStr = s[i : ]
+
+        res = _parse_bracket(currStr)
+        end = re.search('`', currStr).span()[1]
+
+        startInner = re.search('\${', currStr)
+        startInnerIndex = startInner.span()[0] if startInner != None else 0
+
+        if end < startInnerIndex or res.index == 0:
             break
+
         [arr.append((i + j[0], i + j[1])) for j in res.arr]
+        
         i += res.index
 
     return utils.Info(i, arr)
