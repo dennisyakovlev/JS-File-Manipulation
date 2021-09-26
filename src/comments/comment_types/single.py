@@ -1,20 +1,35 @@
-import re
+# Author: Dennis Yakovlev
+
+# File related to the modification of any single line (//) comments in
+# a line.
 
 from src.comments.parser import parser as ps
 
-def _parse_single(f, s):
+def _parse_single(f, line, parse):
     ''' If single line comment is found, remove the comment from the line.
-
-        This function does NOT remove lines from the file. No matter what.
-        If a line was soley a comment, then it is kept just as empty.
     '''
 
-    commentArr = ps._get_comments(s)
+    if not parse:
+        return {
+            'file': f,
+            'line': line,
+            'parsed': False
+        }
+
+    commentArr = ps._get_comments(line)
 
     if len(commentArr) != 0: # has atleast one comment
         last = commentArr.pop() # // comment will always be last comment
 
         if last['type'] == 's': # // comment
-            return (f, s[0 : last['span'][0]] + '\n')
+            return {
+                'file': f,
+                'line': line[0 : last['span'][0]] + (' ' * (last['span'][1] - last['span'][0])) + '\n',
+                'parsed': False
+            }
 
-    return (f, s)
+    return {
+        'file': f,
+        'line': line,
+        'parsed': False
+    }
