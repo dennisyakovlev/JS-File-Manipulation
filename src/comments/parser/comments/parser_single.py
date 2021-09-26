@@ -11,3 +11,10 @@ def _find_normal_single(s):
     '''
 
     return re.search('\/\/', s)
+
+def _comment_single_start(s):
+    ''' Look for the start of a single line comment (//).
+    '''
+
+    res = re.search(r'\/\/', s)
+    return res.span()[0] if res != None else -1
