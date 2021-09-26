@@ -5,6 +5,8 @@ from src.comments.comment_types import single
 from src.comments.comment_types import multi
 
 PROPERTY_NAME_KEY = 'name'
+
+# the functions should NOT delte lines, instead leaving them blank
 PROPERTY_KEYS = {
     'jsdoc': {
         'default': True,
@@ -15,9 +17,12 @@ PROPERTY_KEYS = {
         'function': single._parse_single
     }, 
     'multi': {
-        'default': True
+        'default': True,
+        'function': multi._parse_multi
     }, 
 }
+
+LITERALS_ARR = ['"', "'", '`']
 
 def _createDir(dir):
 
@@ -64,26 +69,31 @@ def _getProp(var):
 
     return ret
 
+# jsdoc MUST be exectued first in each iteration of the while loop
+
 def _convertFile(dir, properties):
     ''' Remove comments from file as specified with <properties>.
     '''
     f = open(dir, 'r')
 
-    trueKeys = []
-    for key in properties:
-        if properties[key] == True:
-            trueKeys.append(key)
-
     arrFile = []
+    propArr = []
+    propArr.append({'jsdoc': properties['jsdoc']})
+    propArr.append({'multi': properties['multi']})
+    propArr.append({'single': properties['single']})
 
     line = ' '
     while line:
         line = f.readline()
-
-        for key in trueKeys:
-            tupe = PROPERTY_KEYS[key]['function'](f, line)
-            f = tupe[0]
-            line = tupe[1]
+        for elem in propArr:
+            key = list(elem.keys())[0]
+            res = PROPERTY_KEYS[key]['function'](f, line, elem[key])
+            f = res['file']
+            line = res['line']
+            
+            if res['parsed']: # parsed multiple lines in the function
+                              # skip past these lines to not parse again
+                break
 
         arrFile.append(line)
 
@@ -103,8 +113,7 @@ def _has_literal(s):
     ''' Whether s has any of ", ', or `.
     '''
 
-    arr = ['"', "'", '`']
-    res = [(quote in s) for quote in arr]
+    res = [(quote in s) for quote in LITERALS_ARR]
 
     for item in res:
         if item:
@@ -126,9 +135,11 @@ def _remove_inner(arr):
     ret = []
 
     curr = arrLocal.pop()
+    i = 0
     while not arrLocal == []:
         i = 0
-        while i != len(arrLocal) and not (curr[0] > arrLocal[i][0] and curr[1] < arrLocal[i][1]): # loop until curr is found out to be inner literal
+        # while i != len(arrLocal) and not (curr[0] > arrLocal[i][0] and curr[1] < arrLocal[i][1]): # loop until curr is found out to be inner literal
+        while i != len(arrLocal) and not (arrLocal[i][0] < curr[0] and curr[1] < arrLocal[i][1]): # loop until curr is found out to be inner literal
             i += 1
 
         if i == len(arrLocal): # not inner
@@ -137,6 +148,9 @@ def _remove_inner(arr):
         else: # inner
             curr = arrLocal.pop(i)
 
-    ret.append(curr)
+    # potential issue here 
+    # used to just be ret.append(curr) with out if
+    if i == len(arrLocal): # not inner
+        ret.append(curr)
 
     return ret
