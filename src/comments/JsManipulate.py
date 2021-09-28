@@ -1,18 +1,10 @@
+# Author: Dennis Yakovlev
+
 import os
 
 from src.comments import utils
 
 def _isBaseCase(obj):
-    ''' Determine whether object is property object.
-    '''
-
-    # if PROPERTY_NAME_KEY is a directory then its value will be a list
-    if utils.PROPERTY_NAME_KEY in obj and isinstance(obj[utils.PROPERTY_NAME_KEY], list):
-        return False
-        
-    return True if utils.PROPERTY_NAME_KEY in obj else False # if PROPERTY_NAME_KEY is a key in object, then property object
-
-def _isBaseCase_temp(obj):
     ''' Determine whether object is property object.
     '''
 
@@ -68,9 +60,8 @@ def start(obj, start_path = '', path = ''):
         utils._createDir(outPath)
 
     # base case 
-    if _isBaseCase_temp(obj):
+    if _isBaseCase(obj):
         properties = utils._getProp(obj)
-        print(properties)
         arr = utils._convertFile(os.path.join(start_path, path, properties[utils.PROPERTY_NAME_KEY] + '.js'), properties)
         utils._wrtieFile(outPath, properties[utils.PROPERTY_NAME_KEY], arr)
         return
