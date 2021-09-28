@@ -47,9 +47,9 @@ where fileName is a dictionary of the form
 ```
 
 ```name``` - the name of file to be converted. .js extension should NOT be added. ie the file "Foo.js" should be "Foo" \
-```jsdoc``` - ```True``` to remove jsdoc comment (), ```False``` to keep \
-```single``` - ```True``` to remove single line comments, ```False``` to keep \
-```multi``` - ```True``` to remove multi lined comments, ```False``` to keep
+```jsdoc``` - ```True``` to remove jsdoc comment (/** \*/), ```False``` to keep \
+```single``` - ```True``` to remove single line (//) comments, ```False``` to keep \
+```multi``` - ```True``` to remove multi lined (/* */) comments, ```False``` to keep
 
 Not adding a key will set it to its default value. \
 To set default to all, can have dict with {'name': fileName} or simply 'fileName'.
@@ -108,6 +108,9 @@ manip.start({
                 { 'curves': ['curve1', 'curve2'] },
                 { 'lines': ['line1', 'line2'] }
             ]
+        },
+        {
+            'animations': ['click', 'hide']
         }
     ]
 }, init_path)
