@@ -17,7 +17,7 @@ def _quote_double_end(s):
         Assume already inside a valid double quoted string literal.
     '''
 
-    res = re.search(r'[^(\\\")]\"', s)
+    res = re.search(r'[^\\\"]\"', s)
     return res.span()[1] if res != None else -1
 
 def _quote_single_start(s):
@@ -33,5 +33,5 @@ def _quote_single_end(s):
         Assume already inside a valid single quoted string literal.
     '''
 
-    res = re.search(r'[^(\\\')]\'', s)
+    res = re.search(r'[^\\\']\'', s)
     return res.span()[1] if res != None else -1

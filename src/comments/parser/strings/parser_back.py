@@ -67,15 +67,12 @@ def _parse_brackets(s):
 def _quote_back_end(s):
     ''' Look for the end of a back quoted (``) string literal.
 
-        <level> how many `` quotes down we are
-
         Assume already inside a valid back quoted string literal.
     '''
 
     endBracket = _parse_brackets(s) # get end of ${}
 
-    end = re.search(r'(^`)|([^(\\)]`)', s[endBracket.index : ]).span()[1] # find closing `
-
+    end = re.search(r'[^\\`]`', s[endBracket.index : ]).span()[1] # find closing `
     endBracket.arr.append((endBracket.index, endBracket.index + end))
     endBracket.index += end
 
